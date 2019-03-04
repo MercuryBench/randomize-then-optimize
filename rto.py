@@ -37,7 +37,7 @@ def rto_accept_log(logweights):
 	ratio = ratio/N
 	return {"acce": acce, "ratio": ratio}
 
-def rto_samples(f_fwd, Jf_fwd, y, sigma, gamma, theta0, mean_theta=None, N_samples=1000, init_method="random"):
+def rto(f_fwd, Jf_fwd, y, sigma, gamma, theta0, mean_theta=None, N_samples=1000, init_method="random"):
 	# method for taking starting point for optimization
 	# option:
 	# "previous": take previous sample as starting point

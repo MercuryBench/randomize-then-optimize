@@ -12,9 +12,9 @@ from rto_l1 import *
 np.random.seed(100872)
 
 # forward function and Jacobian
-ftilde_fnc = lambda x, theta: theta[0]*(1 - np.exp(-theta[1]*x))
+f_fnc = lambda x, theta: theta[0]*(1 - np.exp(-theta[1]*x))
 
-Jftilde_fnc = lambda x, theta: np.stack((1 - np.exp(-theta[1]*x), theta[0] * x * np.exp(-theta[1]*x)), axis=1)
+Jf_fnc = lambda x, theta: np.stack((1 - np.exp(-theta[1]*x), theta[0] * x * np.exp(-theta[1]*x)), axis=1)
 
 # observation positions
 xObs = np.array([0.3, 0.5, 1.0, 1.8, 3.3, 5.8])
@@ -23,8 +23,8 @@ xObs = np.array([0.3, 0.5, 1.0, 1.8, 3.3, 5.8])
 thetatruth = np.array([1.0, 0.3]) 
 
 # forward function for fixed observation positions
-f = lambda theta: ftilde_fnc(xObs, theta)
-Jf = lambda theta: Jftilde_fnc(xObs, theta)
+f = lambda theta: f_fnc(xObs, theta)
+Jf = lambda theta: Jf_fnc(xObs, theta)
 
 # observational noise
 sigma = 0.2
@@ -92,14 +92,14 @@ plt.legend(numpoints=1)
 
 plt.figure(2); plt.clf()
 inds = np.random.choice(range(samples_corrected.shape[0]), 500, replace=False)
-plt.plot(xs, ftilde_fnc(xs, np.reshape(samples_corrected[0], thetatruth.shape)), '0.9', linewidth=1, label="samples")
+plt.plot(xs, f_fnc(xs, np.reshape(samples_corrected[0], thetatruth.shape)), '0.9', linewidth=1, label="samples")
 for ind in inds:	
-	plt.plot(xs, ftilde_fnc(xs, np.reshape(samples_corrected[ind], thetatruth.shape)), '0.9', linewidth=1)
+	plt.plot(xs, f_fnc(xs, np.reshape(samples_corrected[ind], thetatruth.shape)), '0.9', linewidth=1)
 	
 plt.plot(xObs, y, 'rx', label="observation")
-plt.plot(xs, ftilde_fnc(xs, thetatruth), 'g', linewidth=3, label="th_true")
-plt.plot(xs, ftilde_fnc(xs, thetaMAP_grid), 'y', linewidth=3, label="th_MAP (grid search)")
-plt.plot(xs, ftilde_fnc(xs, thetaMAP), 'm', linewidth=3, label="th_MAP (optimization)")
+plt.plot(xs, f_fnc(xs, thetatruth), 'g', linewidth=3, label="th_true")
+plt.plot(xs, f_fnc(xs, thetaMAP_grid), 'y', linewidth=3, label="th_MAP (grid search)")
+plt.plot(xs, f_fnc(xs, thetaMAP), 'm', linewidth=3, label="th_MAP (optimization)")
 plt.legend(numpoints=1)
 plt.show()
 

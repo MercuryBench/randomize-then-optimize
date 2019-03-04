@@ -33,7 +33,7 @@ def rto_l1(f, Jf, y, sigma, lambdas, u0, N_samples = 1000, init_method="random")
 	y_tilde = 1/sigma*y
 
 	
-	res = rto_samples(f_tilde, Jf_tilde, y_tilde, 1, 1, u0, mean_theta=None, N_samples=N_samples, init_method=init_method)
+	res = rto(f_tilde, Jf_tilde, y_tilde, 1, 1, u0, N_samples=N_samples, init_method=init_method)
 	
 	samples_plain = res["samples_plain"]
 	samples_corrected = res["samples_corrected"]

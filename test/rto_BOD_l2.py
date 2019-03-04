@@ -6,15 +6,14 @@ from math import exp
 import scipy.stats as st
 import sys 
 sys.path.append('..')
-
 from rto import *
 
 np.random.seed(100872)
 
 # forward function and Jacobian
-ftilde_fnc = lambda x, theta: theta[0]*(1 - np.exp(-theta[1]*x))
+f_fnc = lambda x, theta: theta[0]*(1 - np.exp(-theta[1]*x))
 
-Jftilde_fnc = lambda x, theta: np.stack((1 - np.exp(-theta[1]*x), theta[0] * x * np.exp(-theta[1]*x)), axis=1)
+Jf_fnc = lambda x, theta: np.stack((1 - np.exp(-theta[1]*x), theta[0] * x * np.exp(-theta[1]*x)), axis=1)
 
 # observation positions
 xObs = np.array([0.3, 0.5, 1.0, 1.8, 3.3, 5.8])
@@ -23,8 +22,8 @@ xObs = np.array([0.3, 0.5, 1.0, 1.8, 3.3, 5.8])
 thetatruth = np.array([1.0, 0.3]) 
 
 # forward function for fixed observation positions
-f = lambda theta: ftilde_fnc(xObs, theta)
-Jf = lambda theta: Jftilde_fnc(xObs, theta)
+f = lambda theta: f_fnc(xObs, theta)
+Jf = lambda theta: Jf_fnc(xObs, theta)
 
 # observational noise
 sigma = 0.3
@@ -34,9 +33,6 @@ y = f(thetatruth) + np.random.normal(0, sigma, xObs.shape)
 
 # prior standard deviation (both parameters)
 gamma = 0.8
-
-# starting point for optimization
-theta0 = np.random.normal(0, gamma, thetatruth.shape)
 
 ############## Stuff for didactical purposes, not necessary for sampling:
 # Plot of posterior negative logdensity
@@ -63,11 +59,15 @@ for n, t1 in enumerate(theta1s):
 
 indmin = np.unravel_index(np.argmin(postvals, axis=None), misvals.shape)
 thetaMAP_grid = np.array([theta1s[indmin[1]], theta2s[indmin[0]]])
+######################################################################
 
 
-N_samples = 1000;
+# starting point for optimization
+theta0 = np.random.normal(0, gamma, thetatruth.shape)
+
 # RTO sampling
-res = rto_samples(f, Jf, y, sigma, gamma, theta0, N_samples=N_samples, init_method="random") # you can also try init_method = "fixed" or "previous", but will work worse
+N_samples = 1000;
+res = rto(f, Jf, y, sigma, gamma, theta0, N_samples=N_samples, init_method="random") # you can also try init_method = "fixed" or "previous", but will work worse
 
 # extract data
 samples_plain = res["samples_plain"]
@@ -91,14 +91,14 @@ plt.legend(numpoints=1)
 
 plt.figure(2); plt.clf()
 inds = np.random.choice(range(samples_corrected.shape[0]), 100, replace=False)
-plt.plot(xs, ftilde_fnc(xs, np.reshape(samples_corrected[0], thetatruth.shape)), '0.9', linewidth=1, label="samples")
+plt.plot(xs, f_fnc(xs, np.reshape(samples_corrected[0], thetatruth.shape)), '0.9', linewidth=1, label="samples")
 for ind in inds:	
-	plt.plot(xs, ftilde_fnc(xs, np.reshape(samples_corrected[ind], thetatruth.shape)), '0.9', linewidth=1)
+	plt.plot(xs, f_fnc(xs, np.reshape(samples_corrected[ind], thetatruth.shape)), '0.9', linewidth=1)
 	
 plt.plot(xObs, y, 'rx', label="observation")
-plt.plot(xs, ftilde_fnc(xs, thetatruth), 'g', linewidth=3, label="th_true")
-plt.plot(xs, ftilde_fnc(xs, thetaMAP_grid), 'y', linewidth=3, label="th_MAP (grid search)")
-plt.plot(xs, ftilde_fnc(xs, thetaMAP), 'm', linewidth=3, label="th_MAP (optimization)")
+plt.plot(xs, f_fnc(xs, thetatruth), 'g', linewidth=3, label="th_true")
+plt.plot(xs, f_fnc(xs, thetaMAP_grid), 'y', linewidth=3, label="th_MAP (grid search)")
+plt.plot(xs, f_fnc(xs, thetaMAP), 'm', linewidth=3, label="th_MAP (optimization)")
 plt.legend(numpoints=1)
 plt.show()
 
