@@ -5,11 +5,11 @@ import matplotlib.pyplot as plt
 from math import exp, log, sqrt, pi
 import sys 
 sys.path.append('..')
-from rto import *
+from rto_scalable import *
 import time
 
-start = time.time()
 
+start = time.time()
 np.random.seed(100872)
 
 # ground truth parameter
@@ -77,7 +77,7 @@ theta0 = np.random.normal(0, gamma, thetatruth.shape)
 
 # RTO sampling
 N_samples = 1500
-res = rto(f, Jf, y, sigma, gamma, theta0, mean_theta = None, N_samples=N_samples, init_method="previous")
+res = rto_scalable(f, Jf, y, sigma, gamma, theta0, mean_theta = None, N_samples=N_samples, init_method="previous")
 
 # extract data
 samples_plain = res["samples_plain"]
@@ -86,7 +86,6 @@ thetaMAP = res["thetaMAP"]
 
 end = time.time()
 print("time elapsed: " + str(end-start))
-
 #plot results
 xx = np.arange(0, pi, 0.01)
 yy = f_fnc(thetatruth, xx)

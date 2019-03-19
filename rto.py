@@ -2,6 +2,7 @@ from __future__ import division
 import numpy as np
 import scipy.optimize as opt
 from math import exp, log, sqrt, pi
+import time
 
 # python implementation for RTO
 # strongly influenced by Marko Laine's Matlab code
@@ -80,6 +81,7 @@ def rto(f_fwd, Jf_fwd, y, sigma, gamma, theta0, mean_theta=None, N_samples=1000,
 	logweights = np.zeros((N_samples,))
 	num_bad_opts = 0;
 	num_bad_QR = 0
+	s1 = time.time()
 	for k in range(N_samples):
 		y_pert = y_aug + np.random.normal(0, 1, y_aug.shape)
 		
@@ -90,10 +92,13 @@ def rto(f_fwd, Jf_fwd, y, sigma, gamma, theta0, mean_theta=None, N_samples=1000,
 			initpoint = samples[k-1, :]
 		else: # catch-all including "fixed"
 			initpoint = theta0
+		s3 = time.time()
 		res = opt.least_squares(lambda theta: np.dot(Q.T, resf(theta, y_pert)), initpoint, lambda theta: np.dot(Q.T, Jf_aug(theta)))
-	
+		s4 = time.time()
+		#print(s4-s3)
+		#print(res)
 		theta = res.x
-		
+		s5 = time.time()
 		if res.cost > 1e-8:
 			# optimization failed
 			num_bad_opts += 1
@@ -105,7 +110,11 @@ def rto(f_fwd, Jf_fwd, y, sigma, gamma, theta0, mean_theta=None, N_samples=1000,
 			if logweights[k] == np.inf:
 				num_bad_QR += 1
 			samples[k, :] = theta
+		s6 = time.time()
+		#print("weights: " + str(s6-s5))
 	
+	s2 = time.time()
+	#print(s2-s1)
 	res_accept = rto_accept_log(logweights)
 	acce = res_accept["acce"]
 	print("accepted: " + str(res_accept["ratio"]))
