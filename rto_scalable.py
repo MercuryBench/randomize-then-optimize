@@ -23,7 +23,7 @@ def rto_accept(weights):
 	ratio = ratio/N
 	return {"acce": acce, "ratio": ratio}
 
-def rto_scalable(f_fwd, Jf_fwd, y, sigma, gamma, theta0, mean_theta=None, N_samples=1000, init_method="random", opt_with_grad=True): 
+def rto_scalable(f_fwd, Jf_fwd, y, sigma, Gamma, theta0, mean_theta=None, N_samples=1000, init_method="random", opt_with_grad=True): 
 	# method for taking starting point for optimization
 	# option:
 	# "previous": take previous sample as starting point
@@ -31,17 +31,17 @@ def rto_scalable(f_fwd, Jf_fwd, y, sigma, gamma, theta0, mean_theta=None, N_samp
 	# "fixed": always take theta0
 	
 	# opt_with_grad: Boolean on whether the optimization by scipy is supposed to employ gradient info as well.
-
+	Spr = scipy.linalg.sqrtm(Gamma)
 
 	# transform variables: v = (theta-mean_theta)/gamma, G(v) = (f_fwd(gamma*v-mean_theta)-y)/sigma, e = eps/sigma
-	if mean_theta == None:
+	if mean_theta is None:
 		mean_theta = np.zeros((len(theta0),))
 
 	def G(v):
-		return (f_fwd(gamma*v+mean_theta)-y)/sigma
+		return (f_fwd(Spr @ v+mean_theta)-y)/sigma
 
 	def DG(v):
-		return gamma*(Jf_fwd(gamma*v+mean_theta))/sigma
+		return (Jf_fwd(Spr @ v+mean_theta)) @ Spr/sigma
 
 	def H(v):
 		return np.concatenate((v, G(v)), axis=0)
@@ -53,6 +53,7 @@ def rto_scalable(f_fwd, Jf_fwd, y, sigma, gamma, theta0, mean_theta=None, N_samp
 		res = opt.least_squares(H, theta0, DH)
 	else:
 		res = opt.least_squares(H, theta0)
+	
 	vMAP = res.x
 
 
@@ -60,21 +61,21 @@ def rto_scalable(f_fwd, Jf_fwd, y, sigma, gamma, theta0, mean_theta=None, N_samp
 
 	# compute SVD
 	Psi, Lambda, PhiT = np.linalg.svd(DG(vMAP), full_matrices=False)
-	
+
 	r = Lambda.shape[0]
 
 	# DH(v_MAP)
 	DHvMAP = DH(vMAP)
-	
+
 	# preconditioner
 	Q = np.dot(DHvMAP, np.linalg.inv(scipy.linalg.sqrtm(np.dot(DHvMAP.T, DHvMAP))))
 
-	
+
 	# utility for weight function	
 	def costterm1(v):
 		t = H(v)
 		return 0.5*np.dot(t, t)
-		
+	
 	def costterm2(v):
 		t = Q.T @ H(v)
 		return 0.5*np.dot(t, t)
@@ -109,7 +110,7 @@ def rto_scalable(f_fwd, Jf_fwd, y, sigma, gamma, theta0, mean_theta=None, N_samp
 		else: # catch-all including "fixed"
 			#print("fixed")
 			initpoint = theta0[0:r]
-		
+
 		# now solve optimization problem min \|I(v)\|^2
 		temp1 = 1/np.sqrt(1 + Lambda)
 		def I(v):		
@@ -117,7 +118,7 @@ def rto_scalable(f_fwd, Jf_fwd, y, sigma, gamma, theta0, mean_theta=None, N_samp
 			#return np.dot(temp1, v) + np.dot(Lambda, np.dot(temp1, np.dot(Psi.T,G(proj + np.dot(Phi, v))))) - np.dot(PhiT, xi[k, :])
 		def DI(v):
 			return np.diag(temp1) + np.diag(Lambda*temp1) @ ( Psi.T @ DG(proj + Phi @ v)) @ Phi
-			#return temp1 + np.dot(np.dot(Lambda, np.dot(temp1, np.dot(Psi.T,DG(proj + np.dot(Phi, v) ) ) ) ), Phi)
+	#return temp1 + np.dot(np.dot(Lambda, np.dot(temp1, np.dot(Psi.T,DG(proj + np.dot(Phi, v) ) ) ) ), Phi)
 		s3 = time.time()
 		if opt_with_grad:		
 			res = opt.least_squares(I, initpoint, jac=DI)
@@ -132,7 +133,7 @@ def rto_scalable(f_fwd, Jf_fwd, y, sigma, gamma, theta0, mean_theta=None, N_samp
 		weights[k] = weightfunction(v)
 		s6 = time.time()
 		#print("weights: " + str(s6-s5))
-		samples[k, :] = gamma*v + mean_theta
+		samples[k, :] = Spr @ v + mean_theta
 	
 	s2 = time.time()
 	#print(s2-s1)
@@ -140,7 +141,7 @@ def rto_scalable(f_fwd, Jf_fwd, y, sigma, gamma, theta0, mean_theta=None, N_samp
 	acce = res_accept["acce"]
 	print("accepted: " + str(res_accept["ratio"]))
 	
-	thetaMAP = gamma*vMAP + mean_theta
+	thetaMAP = Spr @ vMAP + mean_theta
 	
 	res = {"thetaMAP": thetaMAP, "samples_plain": samples, "samples_corrected": samples[acce, :], "weights": weights}
 	return res
@@ -163,20 +164,21 @@ if __name__ == "__main__":
 	xObs = np.array([0.3, 0.5, 1.0, 1.8, 3.3, 5.8])
 
 	# ground truth parameter
-	thetatruth = np.array([1.0, 0.3]) 
+	thetatruth = np.array([3.0, 0.3]) 
 
 	# forward function for fixed observation positions
 	f_fwd = lambda theta: f_fnc(xObs, theta)
 	Jf_fwd = lambda theta: Jf_fnc(xObs, theta)
 
 	# observational noise
-	sigma = 0.3
+	sigma = 0.7
 
 	# generate data
 	y = f_fwd(thetatruth) + np.random.normal(0, sigma, xObs.shape)
 
 	# prior standard deviation (both parameters)
-	gamma = 0.8
+	Gamma = np.diag([0.8**2, 0.8**2]) # was: 0.8, 0.8
+	mean_theta = np.array([0.5, 0.35])
 
 	############## Stuff for didactical purposes, not necessary for sampling:
 	# Plot of posterior negative logdensity
@@ -185,7 +187,7 @@ if __name__ == "__main__":
 	misfit = lambda theta: 1/(2*sigma**2)*np.dot((y-f_fwd(theta)).T, y-f_fwd(theta))
 
 	# find MAP optimizer (by grid iteration)
-	posteriorlogdensity = lambda theta: misfit(theta) + 1/(2*gamma**2)*theta[0]**2 + 1/(2*gamma**2)*theta[1]**2
+	posteriorlogdensity = lambda theta: misfit(theta) + 0.5*(theta-mean_theta) @ (np.linalg.inv(Gamma) @ (theta-mean_theta))# 1/(2*gamma**2)*theta[0]**2 + 1/(2*gamma**2)*theta[1]**2
 
 	N_contours =150
 	theta1s = np.linspace(-3, 3, N_contours)
@@ -206,14 +208,14 @@ if __name__ == "__main__":
 	######################################################################
 	
 	# starting point for optimization
-	theta0 = np.random.normal(0, gamma, thetatruth.shape)
+	theta0 = np.random.multivariate_normal(mean_theta, Gamma)
 	#theta0 = thetaMAP_grid
 	# RTO sampling
 	N_samples = 300;
-	mean_theta= None
+	#mean_theta= None
 	init_method = "random"
 		
-	res = rto_scalable(f_fwd, Jf_fwd, y, sigma, gamma, theta0, N_samples=N_samples, init_method=init_method, opt_with_grad=True)
+	res = rto_scalable(f_fwd, Jf_fwd, y, sigma, Gamma, theta0, mean_theta=mean_theta, N_samples=N_samples, init_method=init_method, opt_with_grad=True)
 
 	
 	
@@ -249,7 +251,7 @@ if __name__ == "__main__":
 	plt.plot(xs, f_fnc(xs, thetatruth), 'g', linewidth=3, label="th_true")
 	plt.plot(xs, f_fnc(xs, thetaMAP_grid), 'y', linewidth=3, label="th_MAP (grid search)")
 	plt.plot(xs, f_fnc(xs, thetaMAP), 'm', linewidth=3, label="th_MAP (optimization)")
-	plt.legend(numpoints=1)
+	plt.legend(numpoints=1, loc=4)
 	plt.show()
 
 
